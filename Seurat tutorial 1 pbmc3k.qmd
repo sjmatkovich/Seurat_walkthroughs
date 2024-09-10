@@ -1,0 +1,49 @@
+---
+title: "Seurat tutorial 1 - pbmc3k"
+subtitle: "Sep 2024"
+author: "Scot J Matkovich (notes)"
+format: html
+editor: visual
+---
+
+## pbmc3k - guided clustering tutorial
+
+Original source: <https://github.com/satijalab/seurat/blob/HEAD/vignettes/pbmc3k_tutorial.Rmd>
+
+### Set up the Seurat object
+
+For this tutorial, we will be analyzing the a dataset of Peripheral Blood Mononuclear Cells (PBMC) freely available from 10X Genomics. There are 2,700 single cells that were sequenced on the Illumina NextSeq 500.\
+
+We start by reading in the data. The Read10X() function reads in the output of the cellranger pipeline from 10X, returning a unique molecular identified (UMI) count matrix. The values in this matrix represent the number of molecules for each feature (i.e. gene; row) that are detected in each cell (column). Note that more recent versions of cellranger now also output using the [h5 file format](https://support.10xgenomics.com/single-cell-gene-expression/software/pipelines/latest/advanced/h5_matrices), which can be read in using the Read10X_h5() function in Seurat.\
+
+We next use the count matrix to create a Seurat object. The object serves as a container that contains both data (like the count matrix) and analysis (like PCA, or clustering results) for a single-cell dataset. For more information, check out the [GitHub Wiki](https://github.com/satijalab/seurat/wiki). For example, in Seurat v5, the count matrix is stored in pbmc\[\["RNA"\]\]\$counts.
+
+```{r}
+#| echo: true
+#| eval: false
+#| code-copy: true
+
+library(dplyr)
+library(Seurat)
+library(patchwork)
+
+work.dir <- "C:/Downloads/"
+
+# Load the PBMC dataset
+if (!dir.exists(file.path(work.dir,"pbmc3k_filtered_gene_bc_matrices/filtered_gene_bc_matrices/hg19/"))) {
+  
+  download.file("https://cf.10xgenomics.com/samples/cell/pbmc3k/pbmc3k_filtered_gene_bc_matrices.tar.gz", destfile = file.path(work.dir,"pbmc3k_filtered_gene_bc_matrices.tar.gz"))
+  untar(file.path(work.dir,"pbmc3k_filtered_gene_bc_matrices.tar.gz"), exdir = file.path(work.dir,"pbmc3k_filtered_gene_bc_matrices"))
+  file.remove(file.path(work.dir,"pbmc3k_filtered_gene_bc_matrices.tar.gz"))
+}
+
+pbmc.data <- Read10X(data.dir = file.path(work.dir,"pbmc3k_filtered_gene_bc_matrices/filtered_gene_bc_matrices/hg19/"))
+
+# Initialize the Seurat object with the raw (non-normalized data).
+pbmc <- CreateSeuratObject(counts = pbmc.data, project = "pbmc3k", min.cells = 3, min.features = 200)
+
+# See the object summary
+pbmc
+```
+
+
