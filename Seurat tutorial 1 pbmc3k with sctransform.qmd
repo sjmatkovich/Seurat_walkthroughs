@@ -130,8 +130,12 @@ pbmc <- SCTransform(pbmc, vars.to.regress = "percent.mt", verbose = FALSE)
 
 Standard steps following `sctransform` that represent a difference to the original tutorial.
 
+Seurat provides several useful ways of visualizing both cells and features that define the PCA, including `VizDimReduction()`, `DimPlot()`, and `DimHeatmap()`. In particular `DimHeatmap()` allows for easy exploration of the primary sources of heterogeneity in a dataset, and can be useful when trying to decide which PCs to include for further downstream analyses. Both cells and features are ordered according to their PCA scores. Setting cells to a number plots the ‘extreme’ cells on both ends of the spectrum, which dramatically speeds plotting for large datasets. Though clearly a supervised analysis, we find this to be a valuable tool for exploring correlated feature sets.
+
+### PCA
+
 ```{r}
-#| label: PCA and UMAP
+#| label: PCA
 #| echo: true
 #| eval: true
 #| code-copy: true
@@ -139,22 +143,6 @@ Standard steps following `sctransform` that represent a difference to the origin
 # perform dimensionality reduction by PCA and UMAP embedding
 # These are now standard steps in the Seurat workflow for visualization and clustering
 pbmc <- RunPCA(pbmc, verbose = FALSE)
-pbmc <- RunUMAP(pbmc, dims = 1:30, verbose = FALSE)
-
-pbmc <- FindNeighbors(pbmc, dims = 1:30, verbose = FALSE)
-pbmc <- FindClusters(pbmc, verbose = FALSE)
-DimPlot(pbmc, label = TRUE) 
-```
-
-### Principal component analysis
-
-Seurat provides several useful ways of visualizing both cells and features that define the PCA, including `VizDimReduction()`, `DimPlot()`, and `DimHeatmap()`.
-
-```{r}
-#| label: examine PCA results
-#| echo: true
-#| eval: true
-#| code-copy: true 
 
 # Examine and visualize PCA results a few different ways
 print(pbmc[["pca"]], dims = 1:5, nfeatures = 5)
@@ -162,16 +150,6 @@ print(pbmc[["pca"]], dims = 1:5, nfeatures = 5)
 VizDimLoadings(pbmc, dims = 1:2, reduction = "pca")
 
 DimPlot(pbmc, reduction = "pca") + NoLegend()
-
-```
-
-In particular `DimHeatmap()` allows for easy exploration of the primary sources of heterogeneity in a dataset, and can be useful when trying to decide which PCs to include for further downstream analyses. Both cells and features are ordered according to their PCA scores. Setting cells to a number plots the ‘extreme’ cells on both ends of the spectrum, which dramatically speeds plotting for large datasets. Though clearly a supervised analysis, we find this to be a valuable tool for exploring correlated feature sets.
-
-```{r}
-#| label: Dimension loadings
-#| echo: true
-#| eval: true
-#| code-copy: true
 
 DimHeatmap(pbmc, dims = 1, cells = 500, balanced = TRUE)
 
@@ -197,13 +175,21 @@ We chose 10 here, but encourage users to consider the following:
 ElbowPlot(pbmc)
 ```
 
-Identifying the true dimensionality of a dataset -- can be challenging/uncertain for the user. We therefore suggest these multiple approaches for users. The first is more supervised, exploring PCs to determine relevant sources of heterogeneity, and could be used in conjunction with GSEA for example. The second (`ElbowPlot`) The third is a heuristic that is commonly used, and can be calculated instantly. In this example, we might have been justified in choosing anything between PC 7-12 as a cutoff.
+### UMAP
 
-We chose 10 here, but encourage users to consider the following:
+```{r}
+#| label: UMAP
+#| echo: true
+#| eval: true
+#| code-copy: true
 
--   Dendritic cell and NK aficionados may recognize that genes strongly associated with PCs 12 and 13 define rare immune subsets (i.e. MZB1 is a marker for plasmacytoid DCs). However, these groups are so rare, they are difficult to distinguish from background noise for a dataset of this size without prior knowledge.
--   We encourage users to repeat downstream analyses with a different number of PCs (10, 15, or even 50!). As you will observe, the results often do not differ dramatically.
--   We advise users to err on the higher side when choosing this parameter. For example, performing downstream analyses with only 5 PCs does significantly and adversely affect results.
+pbmc <- RunUMAP(pbmc, dims = 1:30, verbose = FALSE)
+
+pbmc <- FindNeighbors(pbmc, dims = 1:30, verbose = FALSE)
+pbmc <- FindClusters(pbmc, verbose = FALSE)
+
+DimPlot(pbmc, reduction="umap", label = TRUE) 
+```
 
 ### Improvements with sctransform
 
