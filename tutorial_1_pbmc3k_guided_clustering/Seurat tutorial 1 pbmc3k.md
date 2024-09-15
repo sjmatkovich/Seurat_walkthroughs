@@ -237,11 +237,16 @@ stage, or mitochondrial contamination i.e.:
 
 However, particularly for advanced users who would like to use this
 functionality, we strongly recommend the use of our new normalization
-workflow, `SCTransform()`. The method is described in our paper, with a
-separate vignette using Seurat here. As with `ScaleData()`, the function
-`SCTransform()` also includes a `vars.to.regress` parameter.
+workflow, `SCTransform()`. The method is described in our
+[paper](https://genomebiology.biomedcentral.com/articles/10.1186/s13059-021-02584-9),
+with a separate vignette using Seurat
+[here](https://satijalab.org/seurat/articles/sctransform_vignette). As
+with `ScaleData()`, the function `SCTransform()` also includes a
+`vars.to.regress` parameter.
 
 ## Perform linear dimensional reduction
+
+### Principal component analysis
 
 Next we perform PCA on the scaled data. By default, only the previously
 determined variable features are used as input, but can be defined using
@@ -479,7 +484,7 @@ head(Idents(pbmc), 5)
                    6 
     Levels: 0 1 2 3 4 5 6 7 8
 
-### Run non-linear dimensional reduction (UMAP/tSNE)
+## Run non-linear dimensional reduction (UMAP/tSNE)
 
 Seurat offers several non-linear dimensional reduction techniques, such
 as tSNE and UMAP, to visualize and explore these datasets. The goal of
@@ -506,26 +511,26 @@ pbmc <- RunUMAP(pbmc, dims = 1:10)
     To use Python UMAP via reticulate, set umap.method to 'umap-learn' and metric to 'correlation'
     This message will be shown once per session
 
-    09:30:24 UMAP embedding parameters a = 0.9922 b = 1.112
+    17:19:21 UMAP embedding parameters a = 0.9922 b = 1.112
 
-    09:30:24 Read 2638 rows and found 10 numeric columns
+    17:19:21 Read 2638 rows and found 10 numeric columns
 
-    09:30:24 Using Annoy for neighbor search, n_neighbors = 30
+    17:19:21 Using Annoy for neighbor search, n_neighbors = 30
 
-    09:30:24 Building Annoy index with metric = cosine, n_trees = 50
+    17:19:21 Building Annoy index with metric = cosine, n_trees = 50
 
     0%   10   20   30   40   50   60   70   80   90   100%
 
     [----|----|----|----|----|----|----|----|----|----|
 
     **************************************************|
-    09:30:24 Writing NN index file to temp file C:\Users\sjmat\AppData\Local\Temp\RtmpK6D4qX\file50447c376827
-    09:30:24 Searching Annoy index using 1 thread, search_k = 3000
-    09:30:26 Annoy recall = 100%
-    09:30:26 Commencing smooth kNN distance calibration using 1 thread with target n_neighbors = 30
-    09:30:27 Initializing from normalized Laplacian + noise (using RSpectra)
-    09:30:27 Commencing optimization for 500 epochs, with 105140 positive edges
-    09:30:37 Optimization finished
+    17:19:21 Writing NN index file to temp file C:\Users\sjmat\AppData\Local\Temp\Rtmpm0zHZM\file20f02c295027
+    17:19:21 Searching Annoy index using 1 thread, search_k = 3000
+    17:19:22 Annoy recall = 100%
+    17:19:23 Commencing smooth kNN distance calibration using 1 thread with target n_neighbors = 30
+    17:19:24 Initializing from normalized Laplacian + noise (using RSpectra)
+    17:19:24 Commencing optimization for 500 epochs, with 105140 positive edges
+    17:19:34 Optimization finished
 
 ``` r
 # note that you can set `label = TRUE` or use the LabelClusters function to help label individual clusters

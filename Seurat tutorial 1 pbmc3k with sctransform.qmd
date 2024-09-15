@@ -18,6 +18,8 @@ execute:
 output:
   gfm: default
   html: default
+editor_options: 
+  chunk_output_type: console
 ---
 
 # pbmc3k - guided clustering tutorial
@@ -123,12 +125,10 @@ pbmc <- subset(pbmc, subset = nFeature_RNA > 200 & nFeature_RNA < 2500 & percent
 #| code-copy: true
 
 # run sctransform
-pbmc <- SCTransform(pbmc, vars.to.regress = "percent.mt", verbose = FALSE)
+pbmc <- SCTransform(pbmc, vars.to.regress = "percent.mt", verbose = TRUE)
 ```
 
 ## Perform linear dimensional reduction
-
-Standard steps following `sctransform` that represent a difference to the original tutorial.
 
 Seurat provides several useful ways of visualizing both cells and features that define the PCA, including `VizDimReduction()`, `DimPlot()`, and `DimHeatmap()`. In particular `DimHeatmap()` allows for easy exploration of the primary sources of heterogeneity in a dataset, and can be useful when trying to decide which PCs to include for further downstream analyses. Both cells and features are ordered according to their PCA scores. Setting cells to a number plots the ‘extreme’ cells on both ends of the spectrum, which dramatically speeds plotting for large datasets. Though clearly a supervised analysis, we find this to be a valuable tool for exploring correlated feature sets.
 
@@ -175,7 +175,21 @@ We chose 10 here, but encourage users to consider the following:
 ElbowPlot(pbmc)
 ```
 
+## Run non-linear dimensional reduction (UMAP)
+
 ### UMAP
+
+Seurat offers several non-linear dimensional reduction techniques, such as tSNE and UMAP, to visualize and explore these datasets. The goal of these algorithms is to learn underlying structure in the dataset, in order to place similar cells together in low-dimensional space. Therefore, cells that are grouped together within graph-based clusters determined above should co-localize on these dimension reduction plots.
+
+While we and others have routinely found 2D visualization techniques like tSNE and UMAP to be valuable tools for exploring datasets, all visualization techniques have limitations, and cannot fully represent the complexity of the underlying data. In particular, these methods aim to preserve local distances in the dataset (i.e. ensuring that cells with very similar gene expression profiles co-localize), but often do not preserve more global relationships. We encourage users to leverage techniques like UMAP for visualization, but to avoid drawing biological conclusions solely on the basis of visualization techniques.
+
+### Cluster the cells
+
+Seurat applies a graph-based clustering approach, building upon initial strategies in ([Macosko *et al*](http://www.cell.com/abstract/S0092-8674(15)00549-8)). Importantly, the *distance metric* which drives the clustering analysis (based on previously identified PCs) remains the same. However, our approach to partitioning the cellular distance matrix into clusters has dramatically improved. Our approach was heavily inspired by recent manuscripts which applied graph-based clustering approaches to scRNA-seq data [\[SNN-Cliq, Xu and Su, Bioinformatics, 2015\]](http://bioinformatics.oxfordjournals.org/content/early/2015/02/10/bioinformatics.btv088.abstract) and CyTOF data [\[PhenoGraph, Levine *et al*., Cell, 2015\]](http://www.ncbi.nlm.nih.gov/pubmed/26095251). Briefly, these methods embed cells in a graph structure - for example a K-nearest neighbor (KNN) graph, with edges drawn between cells with similar feature expression patterns, and then attempt to partition this graph into highly interconnected 'quasi-cliques' or 'communities'.
+
+As in PhenoGraph, we first construct a KNN graph based on the euclidean distance in PCA space, and refine the edge weights between any two cells based on the shared overlap in their local neighborhoods (Jaccard similarity). This step is performed using the `FindNeighbors()` function, and takes as input the previously defined dimensionality of the dataset (first 10 PCs).
+
+To cluster the cells, we next apply modularity optimization techniques such as the Louvain algorithm (default) or SLM [\[SLM, Blondel *et al*., Journal of Statistical Mechanics\]](http://dx.doi.org/10.1088/1742-5468/2008/10/P10008), to iteratively group cells together, with the goal of optimizing the standard modularity function. The `FindClusters()` function implements this procedure, and contains a resolution parameter that sets the 'granularity' of the downstream clustering, with increased values leading to a greater number of clusters. We find that setting this parameter between 0.4-1.2 typically returns good results for single-cell datasets of around 3K cells. Optimal resolution often increases for larger datasets. The clusters can be found using the `Idents()` function.
 
 ```{r}
 #| label: UMAP
@@ -234,7 +248,7 @@ The results of sctransfrom are stored in the "SCT" assay. You can learn more abo
 
 \
 
-Users can individually annotate clusters based on canonical markers. However, the sctransform normalization reveals sharper biological distinctions compared to the [standard Seurat workflow](pbmc3k_tutorial.html), in a few ways:
+Users can individually annotate clusters based on canonical markers. However, the sctransform normalization reveals sharper biological distinctions compared to the [standard Seurat workflow](https://satijalab.org/seurat/articles/pbmc3k_tutorial), in a few ways:
 
 -   Clear separation of at least 3 CD8 T cell populations (naive, memory, effector), based on CD8A, GZMK, CCL5, CCR7 expression
 -   Clear separation of three CD4 T cell populations (naive, memory, IFN-activated) based on S100A4, CCR7, IL32, and ISG15
@@ -256,57 +270,6 @@ VlnPlot(pbmc, features = c("CD8A", "GZMK", "CCL5", "S100A4", "ANXA1", "CCR7", "I
 # Visualize canonical marker genes on the sctransform embedding.
 FeaturePlot(pbmc, features = c("CD8A", "GZMK", "CCL5", "S100A4", "ANXA1", "CCR7"), pt.size = 0.2, ncol = 3)
 FeaturePlot(pbmc, features = c("CD3D", "ISG15", "TCL1A", "FCER2", "XCL1", "FCGR3A"), pt.size = 0.2, ncol = 3)
-```
-
-### Cluster the cells
-
-Seurat applies a graph-based clustering approach, building upon initial strategies in ([Macosko *et al*](http://www.cell.com/abstract/S0092-8674(15)00549-8)). Importantly, the *distance metric* which drives the clustering analysis (based on previously identified PCs) remains the same. However, our approach to partitioning the cellular distance matrix into clusters has dramatically improved. Our approach was heavily inspired by recent manuscripts which applied graph-based clustering approaches to scRNA-seq data [\[SNN-Cliq, Xu and Su, Bioinformatics, 2015\]](http://bioinformatics.oxfordjournals.org/content/early/2015/02/10/bioinformatics.btv088.abstract) and CyTOF data [\[PhenoGraph, Levine *et al*., Cell, 2015\]](http://www.ncbi.nlm.nih.gov/pubmed/26095251). Briefly, these methods embed cells in a graph structure - for example a K-nearest neighbor (KNN) graph, with edges drawn between cells with similar feature expression patterns, and then attempt to partition this graph into highly interconnected 'quasi-cliques' or 'communities'.
-
-As in PhenoGraph, we first construct a KNN graph based on the euclidean distance in PCA space, and refine the edge weights between any two cells based on the shared overlap in their local neighborhoods (Jaccard similarity). This step is performed using the `FindNeighbors()` function, and takes as input the previously defined dimensionality of the dataset (first 10 PCs).
-
-To cluster the cells, we next apply modularity optimization techniques such as the Louvain algorithm (default) or SLM [\[SLM, Blondel *et al*., Journal of Statistical Mechanics\]](http://dx.doi.org/10.1088/1742-5468/2008/10/P10008), to iteratively group cells together, with the goal of optimizing the standard modularity function. The `FindClusters()` function implements this procedure, and contains a resolution parameter that sets the 'granularity' of the downstream clustering, with increased values leading to a greater number of clusters. We find that setting this parameter between 0.4-1.2 typically returns good results for single-cell datasets of around 3K cells. Optimal resolution often increases for larger datasets. The clusters can be found using the `Idents()` function.
-
-```{r}
-#| label: Cluster cells
-#| echo: true
-#| eval: true
-#| code-copy: true
- 
-pbmc <- FindNeighbors(pbmc, dims = 1:10)
-pbmc <- FindClusters(pbmc, resolution = 0.5)
-
-# Look at cluster IDs of the first 5 cells
-head(Idents(pbmc), 5)
-```
-
-### Run non-linear dimensional reduction (UMAP/tSNE)
-
-Seurat offers several non-linear dimensional reduction techniques, such as tSNE and UMAP, to visualize and explore these datasets. The goal of these algorithms is to learn underlying structure in the dataset, in order to place similar cells together in low-dimensional space. Therefore, cells that are grouped together within graph-based clusters determined above should co-localize on these dimension reduction plots.
-
-While we and others have routinely found 2D visualization techniques like tSNE and UMAP to be valuable tools for exploring datasets, all visualization techniques have limitations, and cannot fully represent the complexity of the underlying data. In particular, these methods aim to preserve local distances in the dataset (i.e. ensuring that cells with very similar gene expression profiles co-localize), but often do not preserve more global relationships. We encourage users to leverage techniques like UMAP for visualization, but to avoid drawing biological conclusions solely on the basis of visualization techniques.
-
-```{r}
-#| label: umap with plot
-#| echo: true
-#| eval: true
-#| code-copy: true
-#| fig-height: 8
-#| fig-width: 8
-
-pbmc <- RunUMAP(pbmc, dims = 1:10)
-
-# note that you can set `label = TRUE` or use the LabelClusters function to help label individual clusters
-DimPlot(pbmc, reduction = 'umap')
-```
-
-You can save the object at this point so that it can easily be loaded back in without having to rerun the computationally intensive steps performed above, or easily shared with collaborators.
-
-```{r}
-#| label: save object
-#| echo: true
-#| eval: false
-#| code-copy: true
-saveRDS(pbmc, file = file.path(work.dir,"output/pbmc3k_tutorial.rds"))
 ```
 
 ## Finding differentially expressed features (cluster biomarkers)
@@ -350,6 +313,8 @@ head(cluster0.markers, n = 5)
 
 We include several tools for visualizing marker expression. `VlnPlot()` (shows expression probability distributions across clusters), and `FeaturePlot()` (visualizes feature expression on a tSNE or PCA plot) are our most commonly used visualizations. **We also suggest exploring `RidgePlot()`, `CellScatter()`, and `DotPlot()`** as additional methods to view your dataset.
 
+`VlnPlot()`
+
 ```{r}
 #| label: marker violin plots
 #| echo: true
@@ -360,8 +325,10 @@ We include several tools for visualizing marker expression. `VlnPlot()` (shows e
 
 VlnPlot(pbmc, features = c("MS4A1", "CD79A"))
 # you can plot raw counts as well
-VlnPlot(pbmc, features = c("NKG7", "PF4"), slot = 'counts', log = TRUE)
+VlnPlot(pbmc, features = c("NKG7", "PF4"), layer = 'counts', log = TRUE)
 ```
+
+`FeaturePlot()`
 
 ```{r}
 #| label: marker feature plot
@@ -374,6 +341,34 @@ VlnPlot(pbmc, features = c("NKG7", "PF4"), slot = 'counts', log = TRUE)
 FeaturePlot(pbmc, features = c("MS4A1", "GNLY", "CD3E", "CD14", "FCER1A", "FCGR3A", "LYZ", "PPBP", "CD8A"))
 ```
 
+`RidgePlot()`
+
+```{r}
+#| label: marker ridge plot
+#| echo: true
+#| eval: true
+#| code-copy: true
+#| fig-height: 5
+#| fig-width: 10
+
+RidgePlot(pbmc, features = c("CD3E", "LYZ", "CD8A"))
+```
+
+`CellScatter()` generates a scatter plot of features across two single cells. Pearson correlation between the two cells is displayed above the plot.
+
+`DotPlot()`
+
+```{r}
+#| label: marker cell scatter plot
+#| echo: true
+#| eval: true
+#| code-copy: true
+#| fig-height: 5
+#| fig-width: 10
+
+DotPlot(pbmc, features = c("MS4A1", "GNLY", "CD3E", "CD14", "FCER1A", "FCGR3A", "LYZ", "PPBP", "CD8A"))
+```
+
 `DoHeatmap()` generates an expression heatmap for given cells and features. In this case, we are plotting the top 20 markers (or all markers if less than 20) for each cluster. Note that the markers are filtered for at least 2-fold differences.
 
 ```{r clusterHeatmap}
@@ -382,7 +377,7 @@ FeaturePlot(pbmc, features = c("MS4A1", "GNLY", "CD3E", "CD14", "FCER1A", "FCGR3
 #| eval: true
 #| code-copy: true
 #| fig-height: 8
-#| fig-width: 10
+#| fig-width: 14
 
 pbmc.markers |> 
     group_by(cluster) |> 
@@ -394,19 +389,26 @@ DoHeatmap(pbmc, features = top10$gene) + NoLegend()
 
 ### Assigning cell type identity to clusters
 
-Fortunately in the case of this dataset, we can use canonical markers to easily match the unbiased clustering to known cell types:
+Fortunately in the case of this dataset, we can use canonical markers to easily match the unbiased clustering to known cell types. The table below is based on the original pbcm3k guided clustering tutorial, in which 9 clusters were identified. However, in this revised document using `sctransform`, 12 clusters were evident.
+
+Note that the `DoHeatmap` call renders a plot in which the small, additional clusters to the right are very difficult to resolve visually. Inspection of the `top10` tibble derived from `pbmc.markers` was necessary. Remember that `pbmc.markers` contains results from finding markers for every cluster compared to all remaining cells.
+
+Since I am not a PBMC expert I've left some of these new clusters labeled as *unknown*.
 
 | Cluster ID | Markers       | Cell Type    |
 |------------|---------------|--------------|
-| 0          | IL7R, CCR7    | Naive CD4+ T |
+| 0          | IL7R, CD3E    | unknown-1    |
 | 1          | CD14, LYZ     | CD14+ Mono   |
-| 2          | IL7R, S100A4  | Memory CD4+  |
+| 2          | CCR7, CD27    | unknown-2    |
 | 3          | MS4A1         | B            |
 | 4          | CD8A          | CD8+ T       |
-| 5          | FCGR3A, MS4A7 | FCGR3A+ Mono |
-| 6          | GNLY, NKG7    | NK           |
-| 7          | FCER1A, CST3  | DC           |
-| 8          | PPBP          | Platelet     |
+| 5          | GNLY, NKG7    | NK           |
+| 6          | FCGR3A, MS4A7 | FCGR3A+ Mono |
+| 7          | CCL5, NKG7    | unknown-3    |
+| 8          | CD8A, CD8B    | T            |
+| 9          | FCER1A, ENHO  | unknown-4    |
+| 10         | IFIT1, IFIT3  | unknown-5    |
+| 11         | TREML1, LY6G6F| unknown-6    |
 
 ```{r}
 #| label: labelled umap plot
@@ -416,7 +418,7 @@ Fortunately in the case of this dataset, we can use canonical markers to easily 
 #| fig-height: 5
 #| fig-width: 9
 
-new.cluster.ids <- c("Naive CD4 T", "CD14+ Mono", "Memory CD4 T", "B", "CD8 T", "FCGR3A+ Mono", "NK", "DC", "Platelet")
+new.cluster.ids <- c("unknown-1", "CD14+ Mono", "unknown-2", "B", "CD8 T", "NK", "FCGR3A+ Mono", "unknown-3", "T", "unknown-4", "unknown-5", "unknown-6")
 names(new.cluster.ids) <- levels(pbmc)
 pbmc <- RenameIdents(pbmc, new.cluster.ids)
 DimPlot(pbmc, reduction = 'umap', label = TRUE, pt.size = 0.5) + NoLegend()
@@ -434,7 +436,7 @@ library(ggplot2)
 plot <- DimPlot(pbmc, reduction = "umap", label = TRUE, label.size = 4.5) + xlab("UMAP 1") + ylab("UMAP 2") + 
   theme(axis.title = element_text(size = 18), legend.text = element_text(size = 18)) + 
   guides(colour = guide_legend(override.aes = list(size = 10)))
-ggsave(filename = file.path(work.dir,"output/pbmc3k_umap.jpg"), height = 7, width = 12, plot = plot, quality = 50)
+ggsave(filename = file.path(work.dir,"output/pbmc3k_sctransform_umap.jpg"), height = 7, width = 12, plot = plot, quality = 50)
 ```
 
 All the calculations and modifications performed to the Seurat object could be saved to facilitate future work.
@@ -442,10 +444,10 @@ All the calculations and modifications performed to the Seurat object could be s
 ```{r}
 #| label: save final rds
 #| echo: true
-#| eval: true
+#| eval: false
 #| code-copy: true
 
-saveRDS(pbmc, file = file.path(work.dir,"output/pbmc3k_final.rds"))
+saveRDS(pbmc, file = file.path(work.dir,"output/pbmc3k_sctransform_final.rds"))
 ```
 
 <details>
