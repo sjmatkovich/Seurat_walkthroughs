@@ -26,7 +26,7 @@ editor_options:
 
 Original sources: [R markdown](https://github.com/satijalab/seurat/blob/HEAD/vignettes/seurat5_integration.Rmd) and [webpage](https://satijalab.org/seurat/articles/seurat5_integration.html). The recommended new `sctransform` steps to replace `NormalizeData`, `FindVariableFeatures` and `ScaleData` were derived in part from this [R markdown](https://github.com/satijalab/seurat/blob/HEAD/vignettes/sctransform_vignette.Rmd) and associated [webpage](https://satijalab.org/seurat/articles/sctransform_vignette).
 
-*Note Sep 2024*: On R 4.4.0 and Bioconductor 3.20, I had to install the `SeuratWrappers` package via `devtools:: install_github ('satijalab/seurat-wrappers')`. Separately, the `TFBSTools` package needed installation via `BiocManager::install("TFBSTools")` to avoid an error when installing the `Azimuth` package via `devtools::install_github("satijalab/azimuth", "seurat5")`. 
+*Note Sep 2024*: On R 4.4.0/4.4.1 and Bioconductor 3.20, I had to install the `SeuratWrappers` package via `devtools::install_github ('satijalab/seurat-wrappers')`. Separately, the `TFBSTools` package needed installation via `BiocManager::install("TFBSTools")` to avoid an error when installing the `Azimuth` package via `devtools::install_github("satijalab/azimuth", "seurat5")` or via `remotes::install_github("satijalab/azimuth", ref = "master")` (master/main branch rather than seurat5 branch of the repo). I also had to install `SeuratData` via `remotes::install_github("satijalab/seurat-data", "seurat5", quiet = TRUE)` as recommended at https://satijalab.org/seurat/articles/install.html
 
 ```{r}
 #| label: libraries_output_init
@@ -37,8 +37,10 @@ Original sources: [R markdown](https://github.com/satijalab/seurat/blob/HEAD/vig
 
 library(Seurat)
 library(SeuratData)
+InstallData("pbmcsca") # from SeuratData package reference
 library(SeuratWrappers)
 library(Azimuth)
+library(gt) # gt (great tables) package
 library(ggplot2)
 library(patchwork)
 options(future.globals.maxSize = 1e9)
@@ -62,6 +64,70 @@ Seurat v5 assays store data in layers. These layers can store raw, un-normalized
 
 *Note Sep 2024*: The `Azimuth` resources enable cell annotation against a reference for various human tissue sources. It would be of interest to compare these against e.g. `SingleR` and to extend this work to preclinical species. The initial cell annotations via `Azimuth` are used to assist with evaluating integration of the datasets, but it would be worth exploring whether cell annotation can be reasonably left until after multi-platform / multi-'batch' integration.
 
+```{r}
+#| label: load_pbmcsca_runAzimuth
+#| echo: true
+#| eval: true
+#| message: false
+#| code-copy: true
+#| code-fold: true
+#| code-summary: "Code to load pbmcsca and run Azimuth"
+
+# load in the pbmc systematic comparative analysis dataset
+obj <- LoadData("pbmcsca")
+obj <- subset(obj, nFeature_RNA > 1000)
+obj <- RunAzimuth(obj, reference = "pbmcref")
+
+# currently, the object has two layers in the RNA assay: counts, and data
+obj
+# Layers(obj)
+```
+
+The object contains data from nine different batches (stored in the `Method` column in the object metadata), representing seven different technologies. We will aim to integrate the different batches together. In previous versions of Seurat, we would require the data to be represented as nine different Seurat objects. When using Seurat v5 assays, we can instead keep all the data in one object, but simply split the layers. After splitting, there are now 18 layers (a counts and data layer for each batch). We can also run a standard scRNA-seq analysis (i.e. without integration). Note that since the data is split into layers, normalization and variable feature identification is performed for each batch independently (a consensus set of variable features is automatically identified).
+
+```{r}
+#| label: split_batches_normalize
+#| echo: true
+#| eval: true
+#| message: false
+#| code-copy: true
+
+# make a nice table of obj$Method using gt package
+method_summ <- table(obj$Method)
+method_tb <- tibble(method = names(method_summ), cells = method_summ)
+method_tb <- method_tb |>
+  gt() |>
+  tab_header(title = "Cells per batch") # A wide array of decoration methods is available with gt
+
+obj[["RNA"]] <- split(obj[["RNA"]], f = obj$Method)
+obj
+
+options(future.globals.maxSize = 3e+09)
+obj <- SCTransform(obj)
+obj <- RunPCA(obj, npcs = 30, verbose = F)
+
+# the non-SCTransform version of the layer normalization would be:
+# obj <- NormalizeData(obj)
+# obj <- FindVariableFeatures(obj)
+# obj <- ScaleData(obj)
+```
+
+We can now visualize the results of a standard analysis without integration. Note that cells are grouping both by cell type and by underlying method. While a UMAP analysis is just a visualization of this, clustering this dataset would return predominantly batch-specific clusters. Especially if previous cell-type annotations were not available, this would make downstream analysis extremely challenging.
+
+```{r}
+#| label: visualize_normalized_batches
+#| echo: true
+#| eval: true
+#| message: false
+#| code-copy: true
+
+obj <- FindNeighbors(obj, dims = 1:30, reduction = "pca")
+obj <- FindClusters(obj, resolution = 2, cluster.name = "unintegrated_clusters")
+obj <- RunUMAP(obj, dims = 1:30, reduction = "pca", reduction.name = "umap.unintegrated")
+# make summary plots colored by batch or by cell type annotation (predicted.celltype)
+# cell type annotations were previously added by Azimuth
+DimPlot(obj, reduction = "umap.unintegrated", group.by = c("Method", "predicted.celltype.l2"))
+```
 
 
 

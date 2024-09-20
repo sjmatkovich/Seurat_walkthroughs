@@ -395,20 +395,20 @@ Note that the `DoHeatmap` call renders a plot in which the small, additional clu
 
 Since I am not a PBMC expert I've left some of these new clusters labeled as *unknown*.
 
-| Cluster ID | Markers       | Cell Type    |
-|------------|---------------|--------------|
-| 0          | IL7R, CD3E    | unknown-1    |
-| 1          | CD14, LYZ     | CD14+ Mono   |
-| 2          | CCR7, CD27    | unknown-2    |
-| 3          | MS4A1         | B            |
-| 4          | CD8A          | CD8+ T       |
-| 5          | GNLY, NKG7    | NK           |
-| 6          | FCGR3A, MS4A7 | FCGR3A+ Mono |
-| 7          | CCL5, NKG7    | unknown-3    |
-| 8          | CD8A, CD8B    | T            |
-| 9          | FCER1A, ENHO  | unknown-4    |
-| 10         | IFIT1, IFIT3  | unknown-5    |
-| 11         | TREML1, LY6G6F| unknown-6    |
+| Cluster ID | Markers        | Cell Type    |
+|------------|----------------|--------------|
+| 0          | IL7R, CD3E     | unknown-1    |
+| 1          | CD14, LYZ      | CD14+ Mono   |
+| 2          | CCR7, CD27     | unknown-2    |
+| 3          | MS4A1          | B            |
+| 4          | CD8A           | CD8+ T       |
+| 5          | GNLY, NKG7     | NK           |
+| 6          | FCGR3A, MS4A7  | FCGR3A+ Mono |
+| 7          | CCL5, NKG7     | unknown-3    |
+| 8          | CD8A, CD8B     | T            |
+| 9          | FCER1A, ENHO   | unknown-4    |
+| 10         | IFIT1, IFIT3   | unknown-5    |
+| 11         | TREML1, LY6G6F | unknown-6    |
 
 ```{r}
 #| label: labelled umap plot
