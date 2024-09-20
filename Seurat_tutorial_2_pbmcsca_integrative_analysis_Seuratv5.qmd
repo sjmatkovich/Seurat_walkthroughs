@@ -1,0 +1,76 @@
+---
+title: "Seurat tutorial 2 - pbmc multi-platform - with and Seurat v5 integrative analysis new sctransform steps"
+subtitle: "Sep 2024"
+author: "Satija lab (original); Scot J Matkovich (notes)"
+format:
+  gfm: default
+  html:
+    embed-resources: true
+    toc: true
+    toc_float: true
+    toc-depth: 3
+    toc-expand: 3
+    toc-location: right
+editor: visual
+execute:
+  cache: false
+  keep-md: false
+output:
+  gfm: default
+  html: default
+editor_options: 
+  chunk_output_type: console
+---
+
+# pbmcsca - Seurat v5 integrative analysis tutorial
+
+Original sources: [R markdown](https://github.com/satijalab/seurat/blob/HEAD/vignettes/seurat5_integration.Rmd) and [webpage](https://satijalab.org/seurat/articles/seurat5_integration.html). The recommended new `sctransform` steps to replace `NormalizeData`, `FindVariableFeatures` and `ScaleData` were derived in part from this [R markdown](https://github.com/satijalab/seurat/blob/HEAD/vignettes/sctransform_vignette.Rmd) and associated [webpage](https://satijalab.org/seurat/articles/sctransform_vignette).
+
+*Note Sep 2024*: On R 4.4.0 and Bioconductor 3.20, I had to install the `SeuratWrappers` package via `devtools:: install_github ('satijalab/seurat-wrappers')`. Separately, the `TFBSTools` package needed installation via `BiocManager::install("TFBSTools")` to avoid an error when installing the `Azimuth` package via `devtools::install_github("satijalab/azimuth", "seurat5")`. 
+
+```{r}
+#| label: libraries_output_init
+#| echo: true
+#| eval: true
+#| message: false
+#| code-copy: true
+
+library(Seurat)
+library(SeuratData)
+library(SeuratWrappers)
+library(Azimuth)
+library(ggplot2)
+library(patchwork)
+options(future.globals.maxSize = 1e9)
+
+work.dir <- "C:/Downloads/"
+if (!dir.exists(file.path(work.dir,"output"))) dir.create(file.path(work.dir,"output"))
+
+```
+
+## Introduction
+
+Integration of single-cell sequencing datasets, for example across experimental batches, donors, or conditions, is often an important step in scRNA-seq workflows. Integrative analysis can help to match shared cell types and states across datasets, which can boost statistical power, and most importantly, facilitate accurate comparative analysis across datasets. In previous versions of Seurat we introduced methods for integrative analysis, including our ‘anchor-based’ integration workflow. Many labs have also published powerful and pioneering methods, including [Harmony](https://github.com/immunogenomics/harmony) and [scVI](https://yoseflab.github.io/software/scvi-tools/), for integrative analysis.
+
+We recognize that while the goal of matching shared cell types across datasets may be important for many problems, users may also be concerned about which method to use, or that integration could result in a loss of biological resolution. In Seurat v5, we introduce more flexible and streamlined infrastructure to run different integration algorithms with a single line of code. This makes it easier to explore the results of different integration methods, and to compare these results to a workflow that excludes integration steps. For this vignette, we use a [dataset of human PBMC profiled with seven different technologies](https://www.nature.com/articles/s41587-020-0465-8), profiled as part of a systematic comparative analysis (`pbmcsca`). The data is available as part of our [SeuratData](https://github.com/satijalab/seurat-data) package.
+
+## Layers in the Seurat v5 object
+
+Seurat v5 assays store data in layers. These layers can store raw, un-normalized counts (`layer='counts'`), normalized data (`layer='data'`), or z-scored/variance-stabilized data (`layer='scale.data'`). We can load in the data, remove low-quality cells, and obtain predicted cell annotations (which will be useful for assessing integration later), using our [Azimuth pipeline](https://satijalab.github.io/azimuth/articles/run_azimuth_tutorial.html).
+
+### Workflow notes
+
+*Note Sep 2024*: The `Azimuth` resources enable cell annotation against a reference for various human tissue sources. It would be of interest to compare these against e.g. `SingleR` and to extend this work to preclinical species. The initial cell annotations via `Azimuth` are used to assist with evaluating integration of the datasets, but it would be worth exploring whether cell annotation can be reasonably left until after multi-platform / multi-'batch' integration.
+
+
+
+
+<details>
+
+<summary>**Session Info**</summary>
+
+```{r}
+sessionInfo()
+```
+
+</details>
