@@ -28,11 +28,14 @@ Original sources: [R markdown](https://github.com/satijalab/seurat/blob/HEAD/vig
 
 *Note Sep 2024*: On R 4.4.0/4.4.1 and Bioconductor 3.20, I had to install the `SeuratWrappers` package via `devtools::install_github ('satijalab/seurat-wrappers')`. Separately, the `TFBSTools` package needed installation via `BiocManager::install("TFBSTools")` to avoid an error when installing the `Azimuth` package via `devtools::install_github("satijalab/azimuth", "seurat5")` or via `remotes::install_github("satijalab/azimuth", ref = "master")` (master/main branch rather than seurat5 branch of the repo). I also had to install `SeuratData` via `remotes::install_github("satijalab/seurat-data", "seurat5", quiet = TRUE)` as recommended at https://satijalab.org/seurat/articles/install.html
 
+## Library load and output folder setup
+
 ```{r}
 #| label: libraries_output_init
 #| echo: true
 #| eval: true
 #| message: false
+#| warning: false
 #| code-copy: true
 
 library(Seurat)
@@ -40,7 +43,7 @@ library(SeuratData)
 InstallData("pbmcsca", force.reinstall = F) # from SeuratData package reference
 library(SeuratWrappers)
 library(Azimuth)
-library(tibble)
+library(dplyr)
 library(gt) # gt (great tables) package
 library(ggplot2)
 library(patchwork)
@@ -55,9 +58,9 @@ if (!dir.exists(file.path(work.dir,"output"))) dir.create(file.path(work.dir,"ou
 
 ```
 
-## Import pre-calculated objects for visualization
+### Import pre-calculated objects for visualization
 
-If the compute-heavy steps in this notebook have already been run and saved, this permits notebook rendering of visualizations. Otherwise, set `eval: false` in the code chunk below and set `eval: true` throught this notebook as required.
+If the compute-heavy steps in this notebook have already been run and saved, this permits notebook rendering of visualizations. Otherwise, set `eval: false` in the code chunk below and set `eval: true` throughout this notebook as required.
 
 ```{r}
 #| label: load_prev_objects
@@ -68,7 +71,7 @@ If the compute-heavy steps in this notebook have already been run and saved, thi
 #| code-fold: true
 #| code-summary: "Code to import previous objects"
 
-load(file.path(work.dir,"tut2_all-integrations-complete_both_objs.RData"))
+load(file.path(work.dir,"tut2_all-integrations-complete_both_objs_comp-viz.RData"))
 ```
 
 ## Introduction
@@ -90,6 +93,7 @@ Seurat v5 assays store data in layers. These layers can store raw, un-normalized
 #| echo: true
 #| eval: false
 #| message: false
+#| warning: false
 #| code-copy: true
 #| code-fold: true
 #| code-summary: "Code to load pbmcsca and run Azimuth"
@@ -138,17 +142,18 @@ obj
 
 # the non-SCTransform, 'standard' version of the layer normalization
 obj_std <- NormalizeData(obj)
-obj_std <- FindVariableFeatures(obj)
-obj_std <- ScaleData(obj)
-obj_std <- RunPCA(obj)
+obj_std <- FindVariableFeatures(obj_std)
+obj_std <- ScaleData(obj_std)
+obj_std <- RunPCA(obj_std)
 
 # the SCTransform version of layer normalization
 options(future.globals.maxSize = 3e+09)
 obj_sct <- SCTransform(obj)
+# the "scale.data" layer as used in obj_std[["RNA]]] is now placed in obj_sct[["SCT"]]
 obj_sct <- RunPCA(obj_sct, npcs = 30, verbose = F)
 ```
 
-We can now visualize the results of a standard analysis without integration. Note that cells are grouping both by cell type and by underlying method. While a UMAP analysis is just a visualization of this, clustering this dataset would return predominantly batch-specific clusters. Especially if previous cell-type annotations were not available, this would make downstream analysis extremely challenging.
+We can now visualize the results of a standard analysis without integration. Note that cells are grouping both by cell type and by underlying method. While a UMAP analysis is just a visualization of this, clustering this dataset would retuobjrn predominantly batch-specific clusters. Especially if previous cell-type annotations were not available, this would make downstream analysis extremely challenging.
 
 ```{r}
 #| label: umap_normalized_batches
@@ -214,7 +219,7 @@ Note that our anchor-based RPCA integration represents a faster and more conserv
 
 You can find more detail on each method, and any installation prerequisites, in Seurat's documentation (for example, `?scVIIntegration`). For example, scVI integration requires `reticulate` which can be installed from CRAN (`install.packages("reticulate")`) as well as `scanpy` and `scvi-tools` and their dependencies installed in a virtualenv or conda environment. Please see scVI installation instructions [here](https://docs.scvi-tools.org/en/stable/installation.html).
 
-*Note*: the `SeuratWrappers` bundle of R functions available Sep 2024 only permitted `scVIIntegration` to use a conda environment. I modified this Sep 2024 to use a standard Python virtualenv instead, sourced the new function at the start of this notebook, and used it here.
+*Note*: the `SeuratWrappers` bundle of R functions available Sep 2024 only permitted `scVIIntegration` to use a conda environment. I modified this Sep 2024 to use a standard Python virtualenv instead, sourced the new function at the start of this notebook, and employed it here.
 
 ### Standard normalization
 
@@ -267,9 +272,9 @@ Note that `scVIIntegration` may require substantial runtime compared to the othe
 #| message: false
 #| code-copy: true
 
-scvi.reduc <- Embeddings(readRDS(file.path(work.dir, "output/pbmcsca_split_integr_scvi_only.rds")), reduction="integrated.scvi") # extracts a matrix of embeddings
-scvi.reduc <- scvi.reduc[Cells(obj),] # ensures matrix corresponds to cell names in `obj`
-obj[["integrated.scvi"]] <- CreateDimReducObject(embeddings = scvi.reduc)
+scvi.reduc <- Embeddings(readRDS(file.path(work.dir, "output/pbmcsca_split_std_integr_scvi_only.rds")), reduction="integrated.scvi") # extracts a matrix of embeddings
+scvi.reduc <- scvi.reduc[Cells(obj_std),] # ensures matrix corresponds to cell names in `obj`
+obj_std[["integrated.scvi"]] <- CreateDimReducObject(embeddings = scvi.reduc)
 ```
 
 ### SCTransform normalization
@@ -278,7 +283,7 @@ The following code block will do the same, this time using the SCTransform-norma
 
 *Notes Sep 2024*:
 
-Are SCTransform-normalized layers compatible with `FastMNNIntegration`?
+Are SCTransform-normalized layers compatible with `FastMNNIntegration`? Error concerning mismatch of row numbers when executing.
 
 It may be also that the implementation of `scvi-tools` from the `SeuratWrappers` function bundle doesn't yet allow for the use of SCTransform-normalized data (Sep 2024), so I have commented out the relevant `scVIIntegration` lines. There's a note in the Github code that hard-coded assay types are used, which may be the problem, and which are noted as 'to-dos' for fixing.
 
@@ -348,7 +353,116 @@ obj_sct <- IntegrateLayers(
 
 <!-- # ``` -->
 
-## Visualize layer integration steps
+## Visualize layer integration results
+
+First example: compare outputs of `RPCA` and `scvi` methods for data normalized with standard methods (`obj_std`)
+
+```{r}
+#| label: RPCA_scvi_obj_std
+#| echo: true
+#| eval: false
+#| message: false
+#| code-copy: true
+
+# RPCA clusters
+obj_std <- FindNeighbors(obj_std, reduction = "integrated.rpca", dims = 1:30)
+obj_std <- FindClusters(obj_std, resolution = 2, cluster.name = "rpca_clusters")
+obj_std <- RunUMAP(obj_std, reduction = "integrated.rpca", dims = 1:30, reduction.name = "umap.rpca")
+
+# scvi clusters
+obj_std <- FindNeighbors(obj_std, reduction = "integrated.scvi", dims = 1:30)
+obj_std <- FindClusters(obj_std, resolution = 2, cluster.name = "scvi_clusters")
+obj_std <- RunUMAP(obj_std, reduction = "integrated.scvi", dims = 1:30, reduction.name = "umap.scvi")
+```
+
+Plots to compare above methods for `obj_std`
+
+```{r}
+#| label: plots_RPCA_scvi_obj_std
+#| echo: true
+#| eval: true
+#| message: false
+#| code-copy: true
+
+p1 <- DimPlot(
+  obj_std,
+  reduction = "umap.rpca",
+  group.by = c("Method", "predicted.celltype.l2", "rpca_clusters"),
+  combine = FALSE, label.size = 2
+)
+
+p2 <- DimPlot(
+  obj_std,
+  reduction = "umap.scvi",
+  group.by = c("Method", "predicted.celltype.l2", "scvi_clusters"),
+  combine = FALSE, label.size = 2
+)
+
+wrap_plots(c(p1, p2), ncol = 2, byrow = F)
+```
+
+Second example: compare outputs of `RPCA` and `harmony` methods for data normalized with SCTransform (`obj_sct`)
+
+```{r}
+#| label: RPCA_scvi_obj_sct
+#| echo: true
+#| eval: false
+#| message: false
+#| code-copy: true
+
+# RPCA clusters
+obj_sct <- FindNeighbors(obj_sct, reduction = "integrated.rpca", dims = 1:30)
+obj_sct <- FindClusters(obj_sct, resolution = 2, cluster.name = "rpca_clusters")
+obj_sct <- RunUMAP(obj_sct, reduction = "integrated.rpca", dims = 1:30, reduction.name = "umap.rpca")
+
+# scvi clusters
+obj_sct <- FindNeighbors(obj_sct, reduction = "harmony", dims = 1:30)
+obj_sct <- FindClusters(obj_sct, resolution = 2, cluster.name = "harmony_clusters")
+obj_sct <- RunUMAP(obj_sct, reduction = "harmony", dims = 1:30, reduction.name = "umap.harmony")
+```
+
+Plots to compare above methods for `obj_sct`
+
+```{r}
+#| label: plots_RPCA_scvi_obj_sct
+#| echo: true
+#| eval: true
+#| message: false
+#| code-copy: true
+
+p3 <- DimPlot(
+  obj_sct,
+  reduction = "umap.rpca",
+  group.by = c("Method", "predicted.celltype.l2", "rpca_clusters"),
+  combine = FALSE, label.size = 2
+)
+
+p4 <- DimPlot(
+  obj_sct,
+  reduction = "umap.harmony",
+  group.by = c("Method", "predicted.celltype.l2", "harmony_clusters"),
+  combine = FALSE, label.size = 2
+)
+
+wrap_plots(c(p3, p4), ncol = 2, byrow = F)
+```
+
+
+## Choose which dimension reduction to use for joining layers prior to further analyses
+
+After examining plots, choose a dimension reduction method to use for (re)joining layers and proceeding to pseudobulk aggregation and DE etc.
+
+```{r}
+#| label: examples_join_layer
+#| echo: true
+#| eval: false
+#| message: false
+#| code-copy: true
+
+obj_std_scvi <- JoinLayers(obj_std, reduction="integrated.scvi")
+
+obj_sct_rpca <- JoinLayers(obj_sct, reduction="integrated.rpca")
+```
 
 <details>
 
