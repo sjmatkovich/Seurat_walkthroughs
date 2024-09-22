@@ -1,7 +1,7 @@
 ---
-title: "Seurat tutorial 2 - pbmc multi-platform - with and Seurat v5 integrative analysis new sctransform steps"
+title: "Seurat tutorial 2 - pbmc multi-platform - Seurat v5 integrative analysis with new SCTransform steps"
 subtitle: "Sep 2024"
-author: "Satija lab (original); Scot J Matkovich (notes)"
+author: "Satija lab (original); Scot J Matkovich (notes + SCTransofrm edits)"
 format:
   gfm: default
   html:
@@ -37,13 +37,19 @@ Original sources: [R markdown](https://github.com/satijalab/seurat/blob/HEAD/vig
 
 library(Seurat)
 library(SeuratData)
-InstallData("pbmcsca") # from SeuratData package reference
+InstallData("pbmcsca", force.reinstall = F) # from SeuratData package reference
 library(SeuratWrappers)
 library(Azimuth)
+library(tibble)
 library(gt) # gt (great tables) package
 library(ggplot2)
 library(patchwork)
 options(future.globals.maxSize = 1e9)
+
+library(reticulate)
+source("R/scVI_pyvirtualenv.R")
+# scVIIntegration using SeuratWrappers cannot access a Python virtualenv and requires a conda environment(Sep 2024)
+# I modified the scVIIntegration function obtained from the SeuratWrappers Github repo to use a standard Python virtualenv instead
 
 work.dir <- "C:/Downloads/"
 if (!dir.exists(file.path(work.dir,"output"))) dir.create(file.path(work.dir,"output"))
@@ -73,7 +79,7 @@ Seurat v5 assays store data in layers. These layers can store raw, un-normalized
 #| code-fold: true
 #| code-summary: "Code to load pbmcsca and run Azimuth"
 
-# load in the pbmc systematic comparative analysis dataset
+# load in the pbmc comparative analysis dataset
 obj <- LoadData("pbmcsca")
 obj <- subset(obj, nFeature_RNA > 1000)
 obj <- RunAzimuth(obj, reference = "pbmcref")
@@ -84,6 +90,8 @@ obj
 ```
 
 The object contains data from nine different batches (stored in the `Method` column in the object metadata), representing seven different technologies. We will aim to integrate the different batches together. In previous versions of Seurat, we would require the data to be represented as nine different Seurat objects. When using Seurat v5 assays, we can instead keep all the data in one object, but simply split the layers. After splitting, there are now 18 layers (a counts and data layer for each batch). We can also run a standard scRNA-seq analysis (i.e. without integration). Note that since the data is split into layers, normalization and variable feature identification is performed for each batch independently (a consensus set of variable features is automatically identified).
+
+*Question* for future work: how can separate count objects (e.g. from different samples or assays) be loaded directly into a Seurat v5 object as layers, ready for later integration work, rather than import of a single object with subsequent splitting? Is this simply using the ['merge' function](https://satijalab.org/seurat/articles/essential_commands#merge-objects-without-integration)?
 
 ```{r}
 #| label: split_batches_normalize
@@ -97,19 +105,21 @@ method_summ <- table(obj$Method)
 method_tb <- tibble(method = names(method_summ), cells = method_summ)
 method_tb <- method_tb |>
   gt() |>
-  tab_header(title = "Cells per batch") # A wide array of decoration methods is available with gt
+  tab_header(title = "Cells per batch") # A wide array of table decoration methods is available with gt
 
 obj[["RNA"]] <- split(obj[["RNA"]], f = obj$Method)
 obj
 
-options(future.globals.maxSize = 3e+09)
-obj <- SCTransform(obj)
-obj <- RunPCA(obj, npcs = 30, verbose = F)
+# the non-SCTransform version of the layer normalization
+obj <- NormalizeData(obj)
+obj <- FindVariableFeatures(obj)
+obj <- ScaleData(obj)
+obj <- RunPCA(obj)
 
-# the non-SCTransform version of the layer normalization would be:
-# obj <- NormalizeData(obj)
-# obj <- FindVariableFeatures(obj)
-# obj <- ScaleData(obj)
+# the SCTransform version of layer normalization
+options(future.globals.maxSize = 3e+09)
+obj_sct <- SCTransform(obj)
+obj_sct <- RunPCA(obj_sct, npcs = 30, verbose = F)
 ```
 
 We can now visualize the results of a standard analysis without integration. Note that cells are grouping both by cell type and by underlying method. While a UMAP analysis is just a visualization of this, clustering this dataset would return predominantly batch-specific clusters. Especially if previous cell-type annotations were not available, this would make downstream analysis extremely challenging.
@@ -129,6 +139,128 @@ obj <- RunUMAP(obj, dims = 1:30, reduction = "pca", reduction.name = "umap.unint
 DimPlot(obj, reduction = "umap.unintegrated", group.by = c("Method", "predicted.celltype.l2"))
 ```
 
+Interestingly, the use of the SCTransform procedure for normalization and scaling produces transformed, unintegrated data with less platform dependency apparent on initial UMAP plots.
+
+```{r}
+#| label: visualize_SCT-normalized_batches
+#| echo: true
+#| eval: true
+#| message: false
+#| code-copy: true
+
+obj_sct <- FindNeighbors(obj_sct, dims = 1:30, reduction = "pca")
+obj_sct <- FindClusters(obj_sct, resolution = 2, cluster.name = "unintegrated_sct_clusters")
+obj_sct <- RunUMAP(obj_sct, dims = 1:30, reduction = "pca", reduction.name = "umap.sct.unintegrated")
+# make summary plots colored by batch or by cell type annotation (predicted.celltype)
+# cell type annotations were previously added by Azimuth
+DimPlot(obj_sct, reduction = "umap.sct.unintegrated", group.by = c("Method", "predicted.celltype.l2"))
+```
+
+## Easy single-command code for integrative analyses in Seurat v5
+
+Seurat v5 enables streamlined integrative analysis using the `IntegrateLayers` function. The method currently supports five integration methods. Each of these methods performs integration in low-dimensional space, and returns a dimensional reduction (i.e. `integrated.rpca`) that aims to co-embed shared cell types across batches:
+
+-   Anchor-based CCA integration (`method=CCAIntegration`)
+-   Anchor-based RPCA integration (`method=RPCAIntegration`)
+-   Harmony (`method=HarmonyIntegration`)
+-   FastMNN (`method= FastMNNIntegration`)
+-   scVI (`method=scVIIntegration`)
+
+Note that our anchor-based RPCA integration represents a faster and more conservative (less correction) method for integration. For interested users, we discuss this method in more detail in our [previous RPCA vignette](https://satijalab.org/seurat/articles/integration_rpca)
+
+You can find more detail on each method, and any installation prerequisites, in Seurat's documentation (for example, `?scVIIntegration`). For example, scVI integration requires `reticulate` which can be installed from CRAN (`install.packages("reticulate")`) as well as `scanpy` and `scvi-tools` and their dependencies installed in a virtualenv or conda environment. Please see scVI installation instructions [here](https://docs.scvi-tools.org/en/stable/installation.html).
+
+*Note*: the `SeuratWrappers` bundle of R functions available Sep 2024 only permitted `scVIIntegration` to use a conda environment. I modified this Sep 2024 to use a standard Python virtualenv instead, sourced the new function at the start of this notebook, and used it here.
+
+Each of the following lines perform a new integration using a single function call (on the data normalized with the pre-SCTransform methods in `obj`):
+
+```{r}
+#| label: streamlined_integrations
+#| echo: true
+#| eval: true
+#| message: false
+#| code-copy: true
+
+options(future.globals.maxSize = 3e+09)
+
+obj <- IntegrateLayers(
+  object = obj, method = CCAIntegration,
+  orig.reduction = "pca", new.reduction = 'integrated.cca',
+  verbose = FALSE)
+
+obj <- IntegrateLayers(
+  object = obj, method = RPCAIntegration,
+  orig.reduction = "pca", new.reduction = 'integrated.rpca',
+  verbose = FALSE)
+
+obj <- IntegrateLayers(
+  object = obj, method = HarmonyIntegration,
+  orig.reduction = "pca", new.reduction = 'harmony',
+  verbose = FALSE)
+
+obj <- IntegrateLayers(
+  object = obj, method = FastMNNIntegration,
+  new.reduction = 'integrated.mnn',
+  verbose = FALSE)
+
+# obj <- IntegrateLayers(
+#   object = obj, method = scVIIntegration,
+#   new.reduction = "integrated.scvi",
+#   virtual_env = "C:/Users/sjmat/venv_compbio",
+#   verbose = FALSE
+# )
+```
+
+Note that `scVIIntegration` may require substantial runtime compared to the other methods. A process for incorporating the cell embeddings from a previously prepared run of `scVIIntegration` into the `obj` used for visualizations is as follows:
+
+```{r}
+#| label: incorporate_previous_scvi
+#| echo: true
+#| eval: false
+#| message: false
+#| code-copy: true
+
+scvi.reduc <- Embeddings(readRDS(file.path(work.dir, "output/pbmcsca_split_integr_scvi_only.rds")), reduction="integrated.scvi") # extracts a matrix of embeddings
+scvi.reduc <- scvi.reduc[Cells(obj),] # ensures matrix corresponds to cell names in `obj`
+obj[["integrated.scvi"]] <- CreateDimReducObject(embeddings = scvi.reduc)
+```
+
+The following code block will do the same, this time using the SCTransform-normalized layers in `obj_sct`.
+
+```{r}
+#| label: streamlined_sct_integrations
+#| echo: true
+#| eval: true
+#| message: false
+#| code-copy: true
+
+obj_sct <- IntegrateLayers(
+  object = obj_sct, method = CCAIntegration,
+  orig.reduction = "pca", new.reduction = 'integrated.cca',
+  verbose = FALSE)
+
+obj_sct <- IntegrateLayers(
+  object = obj_sct, method = RPCAIntegration,
+  orig.reduction = "pca", new.reduction = 'integrated.rpca',
+  verbose = FALSE)
+
+obj_sct <- IntegrateLayers(
+  object = obj_sct, method = HarmonyIntegration,
+  orig.reduction = "pca", new.reduction = 'harmony',
+  verbose = FALSE)
+
+obj_sct <- IntegrateLayers(
+  object = obj_sct, method = FastMNNIntegration,
+  new.reduction = 'integrated.mnn',
+  verbose = FALSE)
+
+# obj_sct <- IntegrateLayers(
+#   object = obj_sct, method = scVIIntegration,
+#   new.reduction = "integrated.scvi",
+#   virtual_env = "C:/Users/sjmat/venv_compbio",
+#   verbose = FALSE
+# )
+```
 
 
 <details>
