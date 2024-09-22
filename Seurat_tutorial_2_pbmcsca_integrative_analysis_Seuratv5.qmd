@@ -44,7 +44,6 @@ library(tibble)
 library(gt) # gt (great tables) package
 library(ggplot2)
 library(patchwork)
-options(future.globals.maxSize = 1e9)
 
 library(reticulate)
 source("R/scVI_pyvirtualenv.R")
@@ -179,9 +178,15 @@ Each of the following lines perform a new integration using a single function ca
 #| echo: true
 #| eval: true
 #| message: false
+#| warning: false
 #| code-copy: true
 
 options(future.globals.maxSize = 3e+09)
+
+obj <- IntegrateLayers(
+  object = obj, method = FastMNNIntegration,
+  new.reduction = 'integrated.mnn',
+  verbose = FALSE)
 
 obj <- IntegrateLayers(
   object = obj, method = CCAIntegration,
@@ -196,11 +201,6 @@ obj <- IntegrateLayers(
 obj <- IntegrateLayers(
   object = obj, method = HarmonyIntegration,
   orig.reduction = "pca", new.reduction = 'harmony',
-  verbose = FALSE)
-
-obj <- IntegrateLayers(
-  object = obj, method = FastMNNIntegration,
-  new.reduction = 'integrated.mnn',
   verbose = FALSE)
 
 # obj <- IntegrateLayers(
@@ -232,7 +232,13 @@ The following code block will do the same, this time using the SCTransform-norma
 #| echo: true
 #| eval: true
 #| message: false
+#| warning: false
 #| code-copy: true
+
+obj_sct <- IntegrateLayers(
+  object = obj_sct, method = FastMNNIntegration,
+  new.reduction = 'integrated.mnn',
+  verbose = FALSE)
 
 obj_sct <- IntegrateLayers(
   object = obj_sct, method = CCAIntegration,
@@ -249,11 +255,6 @@ obj_sct <- IntegrateLayers(
   orig.reduction = "pca", new.reduction = 'harmony',
   verbose = FALSE)
 
-obj_sct <- IntegrateLayers(
-  object = obj_sct, method = FastMNNIntegration,
-  new.reduction = 'integrated.mnn',
-  verbose = FALSE)
-
 # obj_sct <- IntegrateLayers(
 #   object = obj_sct, method = scVIIntegration,
 #   new.reduction = "integrated.scvi",
@@ -261,7 +262,6 @@ obj_sct <- IntegrateLayers(
 #   verbose = FALSE
 # )
 ```
-
 
 <details>
 
