@@ -263,6 +263,17 @@ obj_sct <- IntegrateLayers(
 # )
 ```
 
+```{r}
+#| label: incorporate_previous_sct_scvi
+#| echo: true
+#| eval: false
+#| message: false
+#| code-copy: true
+
+scvi.reduc.sct <- Embeddings(readRDS(file.path(work.dir, "output/pbmcsca_split_sct_integr_scvi_only.rds")), reduction="integrated.scvi") # extracts a matrix of embeddings
+scvi.reduc.sct <- scvi.reduc.sct[Cells(obj_sct),] # ensures matrix corresponds to cell names in `obj`
+obj_sct[["integrated.scvi"]] <- CreateDimReducObject(embeddings = scvi.reduc.sct)
+```
 
 <details>
 
