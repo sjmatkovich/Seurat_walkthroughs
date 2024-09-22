@@ -263,7 +263,6 @@ obj_sct <- IntegrateLayers(
 # )
 ```
 
-
 <details>
 
 <summary>**Session Info**</summary>
