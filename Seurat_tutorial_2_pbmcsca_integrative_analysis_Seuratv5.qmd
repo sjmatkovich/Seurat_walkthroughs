@@ -227,7 +227,11 @@ obj[["integrated.scvi"]] <- CreateDimReducObject(embeddings = scvi.reduc)
 
 The following code block will do the same, this time using the SCTransform-normalized layers in `obj_sct`.\
 
-It may be that the implementation of `scvi-tools` from the `SeuratWrappers` function bundle doesn't yet allow for the use of SCTransform-normalized data (Sep 2024), so I have commented out the relevant `scVIIntegration` lines. There's a note in the Github code that hard-coded assay types are used, which may be the problem, and which are noted as 'to-dos' for fixing.
+*Notes Sep 2024*:
+
+Are SCTransform-normalized layers compatible with `FastMNNIntegration`?
+
+It may be also that the implementation of `scvi-tools` from the `SeuratWrappers` function bundle doesn't yet allow for the use of SCTransform-normalized data (Sep 2024), so I have commented out the relevant `scVIIntegration` lines. There's a note in the Github code that hard-coded assay types are used, which may be the problem, and which are noted as 'to-dos' for fixing.
 
 ```{r}
 #| label: streamlined_sct_integrations
@@ -237,24 +241,28 @@ It may be that the implementation of `scvi-tools` from the `SeuratWrappers` func
 #| warning: false
 #| code-copy: true
 
-obj_sct <- IntegrateLayers(
-  object = obj_sct, method = FastMNNIntegration,
-  normalization.method = "SCT", new.reduction = 'integrated.mnn',
-  verbose = FALSE)
+# obj_sct <- IntegrateLayers(
+#   object = obj_sct, method = FastMNNIntegration,
+#   normalization.method = "SCT",
+#   orig.reduction = "pca", new.reduction = 'integrated.mnn',
+#   verbose = FALSE)
 
 obj_sct <- IntegrateLayers(
   object = obj_sct, method = CCAIntegration,
-  normalization.method = "SCT", new.reduction = 'integrated.cca',
+  normalization.method = "SCT",
+  orig.reduction = "pca", new.reduction = 'integrated.cca',
   verbose = FALSE)
 
 obj_sct <- IntegrateLayers(
   object = obj_sct, method = RPCAIntegration,
-  normalization.method = "SCT", new.reduction = 'integrated.rpca',
+  normalization.method = "SCT",
+  orig.reduction = "pca", new.reduction = 'integrated.rpca',
   verbose = FALSE)
 
 obj_sct <- IntegrateLayers(
   object = obj_sct, method = HarmonyIntegration,
-  normalization.method = "SCT", new.reduction = 'harmony',
+  normalization.method = "SCT",
+  orig.reduction = "pca", new.reduction = 'harmony',
   verbose = FALSE)
 
 # obj_sct <- IntegrateLayers(
