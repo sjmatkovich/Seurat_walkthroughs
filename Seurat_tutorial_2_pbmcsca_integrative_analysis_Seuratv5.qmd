@@ -1,7 +1,7 @@
 ---
 title: "Seurat tutorial 2 - pbmc multi-platform - Seurat v5 integrative analysis with new SCTransform steps"
 subtitle: "Sep 2024"
-author: "Satija lab (original); Scot J Matkovich (notes + SCTransofrm edits)"
+author: "Satija lab (original); Scot J Matkovich (notes + SCTransform edits)"
 format:
   gfm: default
   html:
@@ -50,7 +50,7 @@ library(patchwork)
 
 library(reticulate)
 source("R/scVI_pyvirtualenv.R")
-# scVIIntegration using SeuratWrappers cannot access a Python virtualenv and requires a conda environment(Sep 2024)
+# scVIIntegration using SeuratWrappers cannot access a Python virtualenv and requires a conda environment (Sep 2024)
 # I modified the scVIIntegration function obtained from the SeuratWrappers Github repo to use a standard Python virtualenv instead
 
 work.dir <- "C:/Downloads/"
@@ -124,6 +124,7 @@ method_tb <- method_tb |>
   gt() |>
   tab_header(title = "Cells per batch") # A wide array of table decoration methods is available with gt
 
+method_tb
 ```
 
 We will aim to integrate the different batches together. In previous versions of Seurat, we would require the data to be represented as nine different Seurat objects. When using Seurat v5 assays, we can instead keep all the data in one object, but simply split the layers. After splitting, there are now 18 layers (a counts and data layer for each batch). We can also run a standard scRNA-seq analysis (i.e. without integration). Note that since the data is split into layers, normalization and variable feature identification is performed for each batch independently (a consensus set of variable features is automatically identified).
@@ -173,6 +174,8 @@ obj_std <- RunUMAP(obj_std, dims = 1:30, reduction = "pca", reduction.name = "um
 #| eval: true
 #| message: false
 #| code-copy: true
+#| fig-height: 5
+#| fig-width: 14
 
 # make summary plots colored by batch or by cell type annotation (predicted.celltype)
 # cell type annotations were previously added by Azimuth
@@ -199,6 +202,8 @@ obj_sct <- RunUMAP(obj_sct, dims = 1:30, reduction = "pca", reduction.name = "um
 #| eval: true
 #| message: false
 #| code-copy: true
+#| fig-height: 5
+#| fig-width: 14
 
 # make summary plots colored by batch or by cell type annotation (predicted.celltype)
 # cell type annotations were previously added by Azimuth
@@ -383,6 +388,8 @@ Plots to compare above methods for `obj_std`
 #| eval: true
 #| message: false
 #| code-copy: true
+#| fig-height: 16
+#| fig-width: 16
 
 p1 <- DimPlot(
   obj_std,
@@ -429,6 +436,8 @@ Plots to compare above methods for `obj_sct`
 #| eval: true
 #| message: false
 #| code-copy: true
+#| fig-height: 16
+#| fig-width: 16
 
 p3 <- DimPlot(
   obj_sct,
