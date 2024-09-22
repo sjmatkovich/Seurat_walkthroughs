@@ -239,22 +239,26 @@ It may be that the implementation of `scvi-tools` from the `SeuratWrappers` func
 
 obj_sct <- IntegrateLayers(
   object = obj_sct, method = FastMNNIntegration,
-  normalization.method = "SCT", new.reduction = 'integrated.mnn',
+  normalization.method = "SCT",
+  orig.reduction = "pca", new.reduction = 'integrated.mnn',
   verbose = FALSE)
 
 obj_sct <- IntegrateLayers(
   object = obj_sct, method = CCAIntegration,
-  normalization.method = "SCT", new.reduction = 'integrated.cca',
+  normalization.method = "SCT",
+  orig.reduction = "pca", new.reduction = 'integrated.cca',
   verbose = FALSE)
 
 obj_sct <- IntegrateLayers(
   object = obj_sct, method = RPCAIntegration,
-  normalization.method = "SCT", new.reduction = 'integrated.rpca',
+  normalization.method = "SCT",
+  orig.reduction = "pca", new.reduction = 'integrated.rpca',
   verbose = FALSE)
 
 obj_sct <- IntegrateLayers(
   object = obj_sct, method = HarmonyIntegration,
-  normalization.method = "SCT", new.reduction = 'harmony',
+  normalization.method = "SCT",
+  orig.reduction = "pca", new.reduction = 'harmony',
   verbose = FALSE)
 
 # obj_sct <- IntegrateLayers(
