@@ -1,6 +1,6 @@
 # Seurat tutorial 2 - pbmc multi-platform - Seurat v5 integrative
 analysis with new SCTransform steps
-Satija lab (original); Scot J Matkovich (notes + SCTransofrm edits)
+Satija lab (original); Scot J Matkovich (notes + SCTransform edits)
 
 # pbmcsca - Seurat v5 integrative analysis tutorial
 
